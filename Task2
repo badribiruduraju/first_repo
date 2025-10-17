@@ -1,0 +1,94 @@
+#include <iostream>
+#include <cstdint>
+#include <chrono>
+
+volatile int accum = 0;
+
+volatile int arr[1500];
+
+volatile int m1[1500][1500];
+volatile int m2[1500][1500];
+
+int main() {
+
+    srand(42); // seeds the randomness
+    // first initialize the arr with random elements
+    for (int i=0; i < 1500; i++) {
+        arr[i] = rand() % 1500;
+        for (int j=0; j < 1500; j++) {
+            m1[i][j] = rand() % 100;
+            m2[i][j] = rand() % 100;
+        }
+    }
+
+    // naive time check
+    auto preAdd = std::chrono::high_resolution_clock::now();
+    accum = 0;
+    const int N = 1500;
+    long long accum = 0;
+
+    // --- Step 1 & 2: Pre-compute row sums for both matrices ---
+    // Time Complexity: O(N^2)
+    std::vector<long long> m1_row_sums(N, 0);
+    std::vector<long long> m2_row_sums(N, 0);
+    for (int r = 0; r < N; ++r) {
+        for (int c = 0; c < N; ++c) {
+            m1_row_sums[r] += m1[r][c];
+            m2_row_sums[r] += m2[r][c];
+        }
+    }
+
+    // --- Step 3: Pre-compute partial sums based on the condition in arr ---
+    // Time Complexity: O(N^2)
+    std::vector<long long> s1(N, 0); // Corresponds to the 'if' block
+    std::vector<long long> s2(N, 0); // Corresponds to the 'else' block
+    for (int k = 0; k < N; ++k) {
+        for (int j = 0; j < N; ++j) {
+            if (arr[j] > 750) {
+                s1[k] += m2[k][arr[j]];
+            } else {
+                s2[k] += m1[k][arr[j]];
+            }
+        }
+    }
+
+    // --- Step 4: Final calculation using the pre-computed values ---
+    // Time Complexity: O(N)
+    for (int k = 0; k < N; ++k) {
+        accum += m1_row_sums[arr[k]] * s1[k];
+        accum -= m2_row_sums[arr[k]] * s2[k];
+    }
+
+    auto postAdd = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(postAdd - preAdd).count();
+    std::cout << "accum = " << accum << " time taken = " << duration << std::endl;
+
+    preAdd = std::chrono::high_resolution_clock::now();
+    accum = 0;
+
+    for (int i=0; i < 1500; i++) {
+        for (int j=0; j < 1500; j++) {
+            if (arr[j] > 750) {
+                // accum gets the dot product between ith column and jth column (say)
+                int dotP = 0;
+                for (int k=0; k < 1500; k++) {
+                    dotP += m1[arr[k]][i] * m2[k][arr[j]];
+                }
+                accum += dotP;
+            }
+            else {
+                // accum gets -dot product between jth column and ith column (say)
+                int dotP = 0;
+                for (int k=0; k < 1500; k++) {
+                    dotP += m1[k][arr[j]] * m2[arr[k]][i];
+                }
+                accum -= dotP;
+            }
+        }
+    }
+
+    postAdd = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::milliseconds>(postAdd - preAdd).count();
+    std::cout << "accum = " << accum << " time taken = " << duration << std::endl;
+
+}
